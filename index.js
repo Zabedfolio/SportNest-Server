@@ -6,7 +6,7 @@ const cors = require('cors');
 
 app.use(cors());
 app.use(express.json());
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const uri = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 5000;
@@ -47,6 +47,14 @@ async function run() {
         const facilityData = req.body;
         const result = await facilityCollection.insertOne(facilityData);
         res.send(result);
+    });
+
+    app.get('/facilities/:id', async (req, res) => {
+        const { id } = req.params;
+        const result = await facilityCollection.findOne({
+             _id: new ObjectId(id) 
+            });
+        res.json(result);
     });
 
     await client.db("admin").command({ ping: 1 });
