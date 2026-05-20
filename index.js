@@ -12,67 +12,75 @@ const uri = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 5000;
 
 const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
+    serverApi: {
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
+    }
 });
 
 async function run() {
-  try {
-    await client.connect();
+    try {
+        await client.connect();
 
-    const db = client.db("SportNest");
-    const facilityCollection = db.collection("facilities");
+        const db = client.db("SportNest");
+        const facilityCollection = db.collection("facilities");
 
-    app.get('/facilities', async (req, res) => {
-        const { search, type } = req.query;
+        app.get('/facilities', async (req, res) => {
+            const { search, type } = req.query;
 
-        const query = {};
+            const query = {};
 
-        if (search) {
-            query.facilityName = { $regex: search, $options: 'i' };
-        }
+            if (search) {
+                query.facilityName = { $regex: search, $options: 'i' };
+            }
 
-        if (type && type !== 'all') {
-            query.facilityType = { $in: type.split(',') };
-        }
+            if (type && type !== 'all') {
+                query.facilityType = { $in: type.split(',') };
+            }
 
-        const result = await facilityCollection.find(query).toArray();
-        res.send(result);
-    });
+            const result = await facilityCollection.find(query).toArray();
+            res.send(result);
+        });
 
-    app.post('/facilities', async (req, res) => {
-        const facilityData = req.body;
-        const result = await facilityCollection.insertOne(facilityData);
-        res.send(result);
-    });
+        app.post('/facilities', async (req, res) => {
+            const facilityData = req.body;
+            const result = await facilityCollection.insertOne(facilityData);
+            res.send(result);
+        });
 
-    app.get('/facilities/:id', async (req, res) => {
-        const { id } = req.params;
-        const result = await facilityCollection.findOne({
-             _id: new ObjectId(id) 
+        app.get('/facilities/:id', async (req, res) => {
+            const { id } = req.params;
+            const result = await facilityCollection.findOne({
+                _id: new ObjectId(id)
             });
-        res.json(result);
-    });
+            res.json(result);
+        });
 
-    app.patch('/facilities/:id', async (req, res) => {
-        const { id } = req.params;
-        const updateData = req.body;
-        const result = await facilityCollection.updateOne(
-            { _id: new ObjectId(id) },{
+        app.patch('/facilities/:id', async (req, res) => {
+            const { id } = req.params;
+            const updateData = req.body;
+            const result = await facilityCollection.updateOne(
+                { _id: new ObjectId(id) }, {
                 $set: updateData
             }
-        );
-        res.json(result);
-            });
+            );
+            res.json(result);
+        });
 
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // await client.close();
-  }
+        app.delete('/facilities/:id', async (req, res) => {
+            const { id } = req.params;
+            const result = await facilityCollection.deleteOne({
+                _id: new ObjectId(id)
+            });
+            res.json(result);
+        });
+
+        await client.db("admin").command({ ping: 1 });
+        console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    } finally {
+        // await client.close();
+    }
 }
 run().catch(console.dir);
 
