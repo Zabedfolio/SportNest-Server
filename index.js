@@ -1,114 +1,174 @@
-const express = require('express')
-const app = express()
+const express = require('express');
+const app = express();
 const dotenv = require('dotenv');
 dotenv.config();
 const cors = require('cors');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 app.use(cors());
 app.use(express.json());
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const uri = process.env.MONGODB_URI;
 const PORT = process.env.PORT || 5000;
+
+if (!uri) {
+    console.error('MONGODB_URI is not set. Add it to your environment variables.');
+}
 
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
         strict: true,
         deprecationErrors: true,
-    }
+    },
 });
 
-async function run() {
-    try {
-        await client.connect();
+let dbPromise;
 
-        const db = client.db("SportNest");
-        const facilityCollection = db.collection("facilities");
-        const bookingCollection = db.collection("bookings");
-
-        app.get('/facilities', async (req, res) => {
-            const { search, type } = req.query;
-
-            const query = {};
-
-            if (search) {
-                query.facilityName = { $regex: search, $options: 'i' };
-            }
-
-            if (type && type !== 'all') {
-                query.facilityType = { $in: type.split(',') };
-            }
-
-            const result = await facilityCollection.find(query).toArray();
-            res.send(result);
-        });
-
-        app.post('/facilities', async (req, res) => {
-            const facilityData = req.body;
-            const result = await facilityCollection.insertOne(facilityData);
-            res.send(result);
-        });
-
-        app.get('/facilities/:id', async (req, res) => {
-            const { id } = req.params;
-            const result = await facilityCollection.findOne({
-                _id: new ObjectId(id)
-            });
-            res.json(result);
-        });
-
-        app.patch('/facilities/:id', async (req, res) => {
-            const { id } = req.params;
-            const updateData = req.body;
-            const result = await facilityCollection.updateOne(
-                { _id: new ObjectId(id) }, {
-                $set: updateData
-            }
-            );
-            res.json(result);
-        });
-
-        app.delete('/facilities/:id', async (req, res) => {
-            const { id } = req.params;
-            const result = await facilityCollection.deleteOne({
-                _id: new ObjectId(id)
-            });
-            res.json(result);
-        });
-
-        app.post('/bookings', async (req, res) => {
-            const bookingData = req.body;
-            const result = await bookingCollection.insertOne(bookingData);
-            res.send(result);
-        });
-
-        app.get('/bookings/:userId', async (req, res) => {
-            const { userId } = req.params;
-            const result = await bookingCollection.find({ userId: userId }).toArray();
-            res.send(result);
-        });
-
-        app.delete('/bookings/:bookingId', async (req, res) => {
-            const { bookingId } = req.params;
-            const result = await bookingCollection.deleteOne({
-                _id: new ObjectId(bookingId)
-            });
-            res.json(result);
-        });
-
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
-    } finally {
-        // await client.close();
+function getDb() {
+    if (!uri) {
+        return Promise.reject(new Error('MONGODB_URI is not configured'));
     }
+    if (!dbPromise) {
+        dbPromise = client.connect().then(() => {
+            console.log('Connected to MongoDB');
+            return client.db('SportNest');
+        });
+    }
+    return dbPromise;
 }
-run().catch(console.dir);
 
 app.get('/', (req, res) => {
     res.send('Server is running');
 });
 
-app.listen(PORT, () => {
-    console.log(`${PORT} is running`);
+app.get('/facilities', async (req, res) => {
+    try {
+        const db = await getDb();
+        const facilityCollection = db.collection('facilities');
+        const { search, type } = req.query;
+        const query = {};
+
+        if (search) {
+            query.facilityName = { $regex: search, $options: 'i' };
+        }
+
+        if (type && type !== 'all') {
+            query.facilityType = { $in: type.split(',') };
+        }
+
+        const result = await facilityCollection.find(query).toArray();
+        res.send(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to fetch facilities' });
+    }
 });
+
+app.post('/facilities', async (req, res) => {
+    try {
+        const db = await getDb();
+        const facilityCollection = db.collection('facilities');
+        const result = await facilityCollection.insertOne(req.body);
+        res.send(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to create facility' });
+    }
+});
+
+app.get('/facilities/:id', async (req, res) => {
+    try {
+        const db = await getDb();
+        const facilityCollection = db.collection('facilities');
+        const result = await facilityCollection.findOne({
+            _id: new ObjectId(req.params.id),
+        });
+        res.json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to fetch facility' });
+    }
+});
+
+app.patch('/facilities/:id', async (req, res) => {
+    try {
+        const db = await getDb();
+        const facilityCollection = db.collection('facilities');
+        const result = await facilityCollection.updateOne(
+            { _id: new ObjectId(req.params.id) },
+            { $set: req.body },
+        );
+        res.json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to update facility' });
+    }
+});
+
+app.delete('/facilities/:id', async (req, res) => {
+    try {
+        const db = await getDb();
+        const facilityCollection = db.collection('facilities');
+        const result = await facilityCollection.deleteOne({
+            _id: new ObjectId(req.params.id),
+        });
+        res.json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to delete facility' });
+    }
+});
+
+app.post('/bookings', async (req, res) => {
+    try {
+        const db = await getDb();
+        const bookingCollection = db.collection('bookings');
+        const result = await bookingCollection.insertOne(req.body);
+        res.send(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to create booking' });
+    }
+});
+
+app.get('/bookings/:userId', async (req, res) => {
+    try {
+        const db = await getDb();
+        const bookingCollection = db.collection('bookings');
+        const result = await bookingCollection
+            .find({ userId: req.params.userId })
+            .toArray();
+        res.send(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to fetch bookings' });
+    }
+});
+
+app.delete('/bookings/:bookingId', async (req, res) => {
+    try {
+        const db = await getDb();
+        const bookingCollection = db.collection('bookings');
+        const result = await bookingCollection.deleteOne({
+            _id: new ObjectId(req.params.bookingId),
+        });
+        res.json(result);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Failed to delete booking' });
+    }
+});
+
+if (require.main === module) {
+    getDb()
+        .then(() => client.db('admin').command({ ping: 1 }))
+        .then(() => console.log('Pinged your deployment. You successfully connected to MongoDB!'))
+        .catch(console.error);
+
+    app.listen(PORT, () => {
+        console.log(`${PORT} is running`);
+    });
+}
+
+module.exports = app;
