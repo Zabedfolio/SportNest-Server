@@ -5,6 +5,10 @@ dotenv.config();
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
+const { createRemoteJWKSet } = require('jose-cjs');
+const { jwtVerify } = require('jose-cjs');
+
+
 app.use(cors());
 app.use(express.json());
 
@@ -23,15 +27,29 @@ const client = new MongoClient(uri, {
     },
 });
 
-const verifyToken = (req, res, next) => {
+const JWKS = createRemoteJWKSet(
+    new URL('https://sport-nest-zabedfolio.vercel.app/api/auth/jwks')
+)
+
+const verifyToken = async(req, res, next) => {
     const authHeader = req?.headers['authorization'];
-    if(!authHeader) {
+    if (!authHeader) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
     const token = authHeader.split(' ')[1];
-    if(!token) {
+    if (!token) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
+
+    try{
+        const { payload } = await jwtVerify(token, JWKS);
+    console.log('Token payload:', payload);
+    next();
+    } catch (err) {
+        return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    
 }
 
 let dbPromise;
