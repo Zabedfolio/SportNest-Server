@@ -93,8 +93,12 @@ app.get('/facilities/:id', async (req, res) => {
 
 app.patch('/facilities/:id',(req,res,next)=>{
     const header = req.headers.authorization;
-    console.log('Authorization header:', header);
-    next();
+    if(header === "logged in"){
+        next();
+    }else{
+        res.status(401).json({message:"Unauthorized"});
+    }
+    
 
 }, async (req, res) => {
     try {
