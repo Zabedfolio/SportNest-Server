@@ -91,7 +91,12 @@ app.get('/facilities/:id', async (req, res) => {
     }
 });
 
-app.patch('/facilities/:id', async (req, res) => {
+app.patch('/facilities/:id',(req,res,next)=>{
+    const header = req.headers.authorization;
+    console.log('Authorization header:', header);
+    next();
+
+}, async (req, res) => {
     try {
         const db = await getDb();
         const facilityCollection = db.collection('facilities');
