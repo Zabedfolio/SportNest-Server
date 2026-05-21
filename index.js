@@ -23,6 +23,17 @@ const client = new MongoClient(uri, {
     },
 });
 
+const verifyToken = (req, res, next) => {
+    const authHeader = req?.headers['authorization'];
+    if(!authHeader) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+    const token = authHeader.split(' ')[1];
+    if(!token) {
+        return res.status(401).json({ message: 'Unauthorized' });
+    }
+}
+
 let dbPromise;
 
 function getDb() {
@@ -91,16 +102,7 @@ app.get('/facilities/:id', async (req, res) => {
     }
 });
 
-app.patch('/facilities/:id',(req,res,next)=>{
-    const header = req.headers.authorization;
-    if(header === "logged in"){
-        next();
-    }else{
-        res.status(401).json({message:"Unauthorized"});
-    }
-    
-
-}, async (req, res) => {
+app.patch('/facilities/:id', async (req, res) => {
     try {
         const db = await getDb();
         const facilityCollection = db.collection('facilities');
